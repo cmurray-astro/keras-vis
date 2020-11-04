@@ -3,8 +3,8 @@ from __future__ import absolute_import
 import numpy as np
 from scipy.ndimage.interpolation import zoom
 
-from keras.layers.convolutional import _Conv
-from keras.layers.pooling import _Pooling1D, _Pooling2D, _Pooling3D
+# from keras.layers.convolutional import _Conv
+# from keras.layers.pooling import _Pooling1D, _Pooling2D, _Pooling3D
 from keras.layers.wrappers import Wrapper
 from keras import backend as K
 
@@ -26,28 +26,37 @@ def _find_penultimate_layer(model, layer_idx, penultimate_layer_idx):
     Returns:
         The penultimate layer.
     """
-    if penultimate_layer_idx is None:
-        for idx, layer in utils.reverse_enumerate(model.layers[:layer_idx - 1]):
-            if isinstance(layer, Wrapper):
-                layer = layer.layer
-            if isinstance(layer, (_Conv, _Pooling1D, _Pooling2D, _Pooling3D)):
-                penultimate_layer_idx = idx
-                break
+    # if penultimate_layer_idx is None:
+    #     for idx, layer in utils.reverse_enumerate(model.layers[:layer_idx - 1]):
+    #         if isinstance(layer, Wrapper):
+    #             layer = layer.layer
+    #         if isinstance(layer, (_Conv, _Pooling1D, _Pooling2D, _Pooling3D)):
+    #             penultimate_layer_idx = idx
+    #             break
 
     if penultimate_layer_idx is None:
-        raise ValueError('Unable to determine penultimate `Conv` or `Pooling` '
-                         'layer for layer_idx: {}'.format(layer_idx))
+        raise ValueError(
+            "Unable to determine penultimate `Conv` or `Pooling` "
+            "layer for layer_idx: {}".format(layer_idx)
+        )
 
     # Handle negative indexing otherwise the next check can fail.
     if layer_idx < 0:
         layer_idx = len(model.layers) + layer_idx
     if penultimate_layer_idx > layer_idx:
-        raise ValueError('`penultimate_layer_idx` needs to be before `layer_idx`')
+        raise ValueError("`penultimate_layer_idx` needs to be before `layer_idx`")
 
     return model.layers[penultimate_layer_idx]
 
 
-def visualize_saliency_with_losses(input_tensor, losses, seed_input, wrt_tensor=None, grad_modifier='absolute', keepdims=False):
+def visualize_saliency_with_losses(
+    input_tensor,
+    losses,
+    seed_input,
+    wrt_tensor=None,
+    grad_modifier="absolute",
+    keepdims=False,
+):
     """Generates an attention heatmap over the `seed_input` by using positive gradients of `input_tensor`
     with respect to weighted `losses`.
 
@@ -76,16 +85,26 @@ def visualize_saliency_with_losses(input_tensor, losses, seed_input, wrt_tensor=
         The normalized gradients of `seed_input` with respect to weighted `losses`.
     """
     opt = Optimizer(input_tensor, losses, wrt_tensor=wrt_tensor, norm_grads=False)
-    grads = opt.minimize(seed_input=seed_input, max_iter=1, grad_modifier=grad_modifier, verbose=False)[1]
+    grads = opt.minimize(
+        seed_input=seed_input, max_iter=1, grad_modifier=grad_modifier, verbose=False
+    )[1]
 
     if not keepdims:
-        channel_idx = 1 if K.image_data_format() == 'channels_first' else -1
+        channel_idx = 1 if K.image_data_format() == "channels_first" else -1
         grads = np.max(grads, axis=channel_idx)
     return utils.normalize(grads)[0]
 
 
-def visualize_saliency(model, layer_idx, filter_indices, seed_input, wrt_tensor=None,
-                       backprop_modifier=None, grad_modifier='absolute', keepdims=False):
+def visualize_saliency(
+    model,
+    layer_idx,
+    filter_indices,
+    seed_input,
+    wrt_tensor=None,
+    backprop_modifier=None,
+    grad_modifier="absolute",
+    keepdims=False,
+):
     """Generates an attention heatmap over the `seed_input` for maximizing `filter_indices`
     output in the given `layer_idx`.
 
@@ -128,13 +147,15 @@ def visualize_saliency(model, layer_idx, filter_indices, seed_input, wrt_tensor=
 
     # `ActivationMaximization` loss reduces as outputs get large, hence negative gradients indicate the direction
     # for increasing activations. Multiply with -1 so that positive gradients indicate increase instead.
-    losses = [
-        (ActivationMaximization(model.layers[layer_idx], filter_indices), -1)
-    ]
-    return visualize_saliency_with_losses(model.input, losses, seed_input, wrt_tensor, grad_modifier, keepdims)
+    losses = [(ActivationMaximization(model.layers[layer_idx], filter_indices), -1)]
+    return visualize_saliency_with_losses(
+        model.input, losses, seed_input, wrt_tensor, grad_modifier, keepdims
+    )
 
 
-def visualize_cam_with_losses(input_tensor, losses, seed_input, penultimate_layer, grad_modifier=None):
+def visualize_cam_with_losses(
+    input_tensor, losses, seed_input, penultimate_layer, grad_modifier=None
+):
     """Generates a gradient based class activation map (CAM) by using positive gradients of `input_tensor`
     with respect to weighted `losses`.
 
@@ -162,8 +183,12 @@ def visualize_cam_with_losses(input_tensor, losses, seed_input, penultimate_laye
         The normalized gradients of `seed_input` with respect to weighted `losses`.
     """
     penultimate_output = penultimate_layer.output
-    opt = Optimizer(input_tensor, losses, wrt_tensor=penultimate_output, norm_grads=False)
-    _, grads, penultimate_output_value = opt.minimize(seed_input, max_iter=1, grad_modifier=grad_modifier, verbose=False)
+    opt = Optimizer(
+        input_tensor, losses, wrt_tensor=penultimate_output, norm_grads=False
+    )
+    _, grads, penultimate_output_value = opt.minimize(
+        seed_input, max_iter=1, grad_modifier=grad_modifier, verbose=False
+    )
 
     # For numerical stability. Very small grad values along with small penultimate_output_value can cause
     # w * penultimate_output_value to zero out, even for reasonable fp precision of float32.
@@ -171,7 +196,7 @@ def visualize_cam_with_losses(input_tensor, losses, seed_input, penultimate_laye
 
     # Average pooling across all feature maps.
     # This captures the importance of feature map (channel) idx to the output.
-    channel_idx = 1 if K.image_data_format() == 'channels_first' else -1
+    channel_idx = 1 if K.image_data_format() == "channels_first" else -1
     other_axis = np.delete(np.arange(len(grads.shape)), channel_idx)
     weights = np.mean(grads, axis=tuple(other_axis))
 
@@ -196,9 +221,15 @@ def visualize_cam_with_losses(input_tensor, losses, seed_input, penultimate_laye
     return utils.normalize(heatmap)
 
 
-def visualize_cam(model, layer_idx, filter_indices,
-                  seed_input, penultimate_layer_idx=None,
-                  backprop_modifier=None, grad_modifier=None):
+def visualize_cam(
+    model,
+    layer_idx,
+    filter_indices,
+    seed_input,
+    penultimate_layer_idx=None,
+    backprop_modifier=None,
+    grad_modifier=None,
+):
     """Generates a gradient based class activation map (grad-CAM) that maximizes the outputs of
     `filter_indices` in `layer_idx`.
 
@@ -239,7 +270,7 @@ def visualize_cam(model, layer_idx, filter_indices,
 
     # `ActivationMaximization` outputs negative gradient values for increase in activations. Multiply with -1
     # so that positive gradients indicate increase instead.
-    losses = [
-        (ActivationMaximization(model.layers[layer_idx], filter_indices), -1)
-    ]
-    return visualize_cam_with_losses(model.input, losses, seed_input, penultimate_layer, grad_modifier)
+    losses = [(ActivationMaximization(model.layers[layer_idx], filter_indices), -1)]
+    return visualize_cam_with_losses(
+        model.input, losses, seed_input, penultimate_layer, grad_modifier
+    )
