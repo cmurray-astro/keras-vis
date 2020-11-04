@@ -9,40 +9,47 @@ import tensorflow as tf
 from ..utils import utils
 from tensorflow.python.framework import ops
 import keras
-from keras.models import load_model
+from tensorflow.keras.models import load_model
 from keras.layers import advanced_activations, Activation
 
 
 # Register all classes with `advanced_activations` module
 _ADVANCED_ACTIVATIONS = set()
 for name, obj in inspect.getmembers(advanced_activations, inspect.isclass):
-    if not name.startswith("_") and hasattr(obj, "__module__") and obj.__module__ == advanced_activations.__name__:
+    if (
+        not name.startswith("_")
+        and hasattr(obj, "__module__")
+        and obj.__module__ == advanced_activations.__name__
+    ):
         _ADVANCED_ACTIVATIONS.add(obj)
 _ADVANCED_ACTIVATIONS = tuple(_ADVANCED_ACTIVATIONS)
 
 
 def _register_guided_gradient(name):
     if name not in ops._gradient_registry._registry:
+
         @tf.RegisterGradient(name)
         def _guided_backprop(op, grad):
             dtype = op.outputs[0].dtype
-            gate_g = tf.cast(grad > 0., dtype)
-            gate_y = tf.cast(op.outputs[0] > 0., dtype)
+            gate_g = tf.cast(grad > 0.0, dtype)
+            gate_y = tf.cast(op.outputs[0] > 0.0, dtype)
             return gate_y * gate_g * grad
 
 
 def _register_rectified_gradient(name):
     if name not in ops._gradient_registry._registry:
+
         @tf.RegisterGradient(name)
         def _relu_backprop(op, grad):
             dtype = op.outputs[0].dtype
-            gate_g = tf.cast(grad > 0., dtype)
+            gate_g = tf.cast(grad > 0.0, dtype)
             return gate_g * grad
+
 
 # Map of modifier type to registration function.
 _BACKPROP_MODIFIERS = {
-    'guided': _register_guided_gradient,
-    'rectified': _register_rectified_gradient
+    "guided": _register_guided_gradient,
+    "rectified": _register_rectified_gradient,
 }
 
 
@@ -80,7 +87,9 @@ def modify_model_backprop(model, backprop_modifier):
     if modified_model is not None:
         return modified_model
 
-    model_path = os.path.join(tempfile.gettempdir(), next(tempfile._get_candidate_names()) + '.h5')
+    model_path = os.path.join(
+        tempfile.gettempdir(), next(tempfile._get_candidate_names()) + ".h5"
+    )
     try:
         # 1. Save original model
         model.save(model_path)
@@ -92,7 +101,7 @@ def modify_model_backprop(model, backprop_modifier):
         modifier_fn(backprop_modifier)
 
         # 3. Create graph under custom context manager.
-        with tf.get_default_graph().gradient_override_map({'Relu': backprop_modifier}):
+        with tf.get_default_graph().gradient_override_map({"Relu": backprop_modifier}):
             #  This should rebuild graph with modifications.
             modified_model = load_model(model_path)
 
