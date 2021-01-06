@@ -2,6 +2,7 @@ from __future__ import absolute_import
 
 import numpy as np
 from tensorflow.keras import backend as K
+import tensorflow as tf
 
 from .callbacks import Print
 from .grad_modifiers import get
@@ -41,7 +42,7 @@ class Optimizer(object):
         self.wrt_tensor = self.input_tensor if wrt_tensor is None else wrt_tensor
         if self.input_tensor is self.wrt_tensor:
             self.wrt_tensor_is_input_tensor = True
-            self.wrt_tensor = K.identity(self.wrt_tensor)
+            self.wrt_tensor = tf.identity(self.wrt_tensor)
         else:
             self.wrt_tensor_is_input_tensor = False
 
@@ -99,7 +100,6 @@ class Optimizer(object):
         # Add batch dim if needed.
         if len(seed_input.shape) != len(desired_shape):
             seed_input = np.expand_dims(seed_input, 0)
-
         # Only possible if channel idx is out of place.
         if seed_input.shape[-1] != desired_shape[-1] and \
            seed_input.shape[1] != desired_shape[1]:
