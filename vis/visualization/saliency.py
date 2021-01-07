@@ -86,9 +86,6 @@ def visualize_saliency_with_losses(
     Returns:
         The normalized gradients of `seed_input` with respect to weighted `losses`.
     """
-    print('input tensor', input_tensor)
-    print('losses', losses)
-    print('wrt_tensor', wrt_tensor)
     opt = Optimizer(input_tensor, losses, wrt_tensor=wrt_tensor, norm_grads=False)
     grads = opt.minimize(
         seed_input=seed_input, max_iter=1, grad_modifier=grad_modifier, verbose=False
@@ -153,6 +150,7 @@ def visualize_saliency(
     # `ActivationMaximization` loss reduces as outputs get large, hence negative gradients indicate the direction
     # for increasing activations. Multiply with -1 so that positive gradients indicate increase instead.
     losses = [(ActivationMaximization(model.layers[layer_idx], filter_indices), -1)]
+    print('losses', losses)
     return visualize_saliency_with_losses(
         model.input, losses, seed_input, wrt_tensor, grad_modifier, keepdims
     )
