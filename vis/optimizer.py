@@ -3,6 +3,7 @@ from __future__ import absolute_import
 import numpy as np
 from tensorflow.keras import backend as K
 import tensorflow as tf
+tf.compat.v1.disable_eager_execution()
 
 from .callbacks import Print
 from .grad_modifiers import get
