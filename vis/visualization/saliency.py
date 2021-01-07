@@ -150,7 +150,6 @@ def visualize_saliency(
     # `ActivationMaximization` loss reduces as outputs get large, hence negative gradients indicate the direction
     # for increasing activations. Multiply with -1 so that positive gradients indicate increase instead.
     losses = [(ActivationMaximization(model.layers[layer_idx], filter_indices), -1)]
-    print('losses', losses)
     return visualize_saliency_with_losses(
         model.input, losses, seed_input, wrt_tensor, grad_modifier, keepdims
     )
