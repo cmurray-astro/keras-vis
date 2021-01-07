@@ -86,6 +86,9 @@ def visualize_saliency_with_losses(
     Returns:
         The normalized gradients of `seed_input` with respect to weighted `losses`.
     """
+    print('input tensor', input_tensor)
+    print('losses', losses)
+    print('wrt_tensor', wrt_tensor)
     opt = Optimizer(input_tensor, losses, wrt_tensor=wrt_tensor, norm_grads=False)
     grads = opt.minimize(
         seed_input=seed_input, max_iter=1, grad_modifier=grad_modifier, verbose=False
